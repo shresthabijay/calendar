@@ -1,0 +1,61 @@
+.yearmonthpicker {
+  min-width: 400px;
+  padding: 20px;
+  z-index: 500;
+  border-radius: 5px;
+  background: rgb(252, 252, 252);
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+}
+
+.yearmonthpicker .month-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-column-gap: 20px;
+  grid-row-gap: 20px;
+}
+
+.yearmonthpicker .month-wrapper .month-tab {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgb(226, 226, 226);
+  border-radius: 4px;
+  border: none;
+  color: rgb(41, 40, 40);
+  height: 50px;
+}
+
+.yearmonthpicker .month-wrapper .month-tab.active {
+  background: var(--shade-1);
+  color: white;
+}
+
+.yearmonthpicker .year-section {
+  color: var(--shade-1);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  font-size: 32px;
+  font-weight: 500;
+  padding-bottom: 16px;
+}
+
+.yearmonthpicker .year-section .icon-group {
+}
+
+.yearmonthpicker .year-section .year-div {
+  text-align: center;
+}
+
+.yearmonthpicker .button-section {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.yearmonthpicker .button-section button {
+  border: none;
+  height: 40px;
+  color: white;
+  border-radius: 5px;
+  min-width: 80px;
+}
