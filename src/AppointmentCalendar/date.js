@@ -69,3 +69,65 @@ export const findFirstSunday = date => {
   }
   return firstSundayOfTheMonth;
 };
+
+export const checkIfTwoTimeSlotOverlaps = (timeSlot1, timeSlot2) => {
+  // timeslot has start and end time//
+
+  // this function checks if the two given timeslots have intersection and returns intersection timeslot//
+  if (
+    timeSlot1.end.isAfter(timeSlot2.start) &&
+    timeSlot1.start.isBefore(timeSlot2.end)
+  ) {
+    // checking the condition to decide which start and end time to use for intersection timeslot //
+
+    /* first Condtion */
+    // timeslot1:     s---------   //
+    // timeslot2: s-------------   //
+    if (timeSlot1.start.isSameOrAfter(timeSlot2.start)) {
+      /* sub condition */
+      // timeslot1:     s---------E   //
+      // timeslot2: s---------E   //
+      if (timeSlot1.end.isSameOrAfter(timeSlot2.end)) {
+        return {
+          start: timeSlot1.start,
+          end: timeSlot2.end
+        };
+      }
+      /* sub condition */
+      // timeslot1:     s---------E   //
+      // timeslot2: s-----------------E   //
+      else {
+        return {
+          start: timeSlot1.start,
+          end: timeSlot1.end
+        };
+      }
+    }
+    /* second Condtion */
+    // timeslot1: s-----------   //
+    // timeslot2:     s-------  //
+    else if (timeSlot1.start.isSameOrBefore(timeSlot2.start)) {
+      /* sub condition */
+      // timeslot1: s-----------E   //
+      // timeslot2:     s----------E //
+      if (timeSlot1.end.isSameOrBefore(timeSlot2.end)) {
+        return {
+          start: timeSlot2.start,
+          end: timeSlot1.end
+        };
+      }
+      /* sub condition */
+      // timeslot1: s------------------E   //
+      // timeslot2:     s----------E //
+      else {
+        return {
+          start: timeSlot2.start,
+          end: timeSlot2.end
+        };
+      }
+    }
+  } else {
+    /* no overlapping condition */
+    return false;
+  }
+};

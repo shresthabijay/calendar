@@ -1,4 +1,4 @@
-export let availability_fields = {
+export let location_availability_fields = {
   monday: [
     { start: '09: 27', end: '12: 00', location: ['123'] },
     { start: '16: 00', end: '20: 00', location: ['678'] }
@@ -12,4 +12,32 @@ export let availability_fields = {
   ],
   saturday: [],
   sunday: []
+};
+
+export let person_availability_fields = {
+  sunday: [],
+  monday: [
+    {
+      start: '09:00',
+      end: '17:00',
+      location: ''
+    }
+  ],
+  tuesday: [
+    {
+      start: '09:00',
+      end: '17:00',
+      location: ''
+    }
+  ],
+  wednesday: [],
+  thursday: [],
+  friday: [
+    {
+      start: '09:00',
+      end: '17:00',
+      location: ''
+    }
+  ],
+  saturday: []
 };

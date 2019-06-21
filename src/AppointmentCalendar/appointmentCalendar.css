@@ -103,11 +103,6 @@
   height: 100%;
   overflow: scroll;
   overflow-x: hidden;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  grid-auto-rows: minmax(min-content, max-content);
-  grid-row-gap: 12px;
-  grid-column-gap: 12px;
 }
 
 .appointment-calendar .day .add-logo:hover {
@@ -213,6 +208,15 @@
 .appointment-calendar .viewbar .view-selection .view-button.active {
   background: #fff;
   cursor: default;
+}
+
+.appointment-calendar .timeslot-row {
+  height: 60px;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: repeat(auto-fit, 150px);
+  grid-column-gap: 20px;
+  padding: 12px 0px;
 }
 
 .appointment-calendar .timeslot {

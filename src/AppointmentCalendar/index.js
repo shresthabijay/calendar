@@ -6,7 +6,8 @@ import {
   dayNames,
   dateRangeForMonth,
   weekRange,
-  findFirstSunday
+  findFirstSunday,
+  checkIfTwoTimeSlotOverlaps
 } from './date';
 
 import OutsideClick from './OutsideClick';
@@ -88,46 +89,83 @@ class DayCard extends Component {
     let date = moment();
     let timeSlots = [];
     let timeSlotCards = [];
+    let dates = [];
+
     let i = 0;
+
+    /* checking if the calendar is in the day view. If so we need to display appoinment UI */
     if (this.props.isDayView) {
+      /* using the filtered availability data for this specific data passed from the props */
       this.props.appointmentData.forEach(data => {
-        let startTime = data.start.split(':').map(data => {
-          return parseInt(data);
-        });
+        let date1 = data.start;
+        let date2 = data.end;
 
-        let endTime = data.end.split(':').map(data => {
-          return parseInt(data);
-        });
-
-        let date1 = moment(data.start, 'HH:mm');
-        let date2 = moment(data.end, 'HH:mm');
-
-        if (date1.minute() !== 0 || date1.minute() % 15 !== 0) {
-          let adjustedTime = date1.minute() - (date1.minute() % 15) + 15;
+        //adjusting the start time of the each timeslot to be at 15 min interval//
+        if (
+          date1.minute() !== 0 &&
+          date1.minute() % this.props.timeIncrement !== 0
+        ) {
+          let adjustedTime =
+            date1.minute() -
+            (date1.minute() % this.props.timeIncrement) +
+            this.props.timeIncrement;
           date1.set({ minute: adjustedTime });
         }
-        let timeArr = Array.from(
-          moment.range(date1, date2).by('minutes', { step: 15 })
+
+        /* arr of dates between the timeslot with step of 15 min */
+        console.log(
+          date1.format('HH:mm').toString(),
+          '-',
+          date2.format('HH:mm').toString()
         );
 
-        timeArr.pop();
+        let timeArr = Array.from(
+          moment
+            .range(date1, date2)
+            .by('minutes', { step: this.props.timeIncrement })
+        );
 
-        if (timeSlots.length > 0) {
-          timeSlots = [...timeSlots, { type: 'break' }, ...timeArr];
-        } else {
-          timeSlots = [...timeSlots, ...timeArr];
-        }
+        timeSlots = [...timeSlots, ...timeArr];
+
+        let currentHour = timeArr[0].hour();
+        let currentHourDatesArr = [];
+
+        timeArr.forEach((date, i) => {
+          if (currentHour === date.hour()) {
+            currentHourDatesArr.push(date);
+          } else {
+            currentHourDatesArr.push(date);
+            dates.push(currentHourDatesArr);
+            currentHourDatesArr = [];
+            currentHourDatesArr.push(date);
+            if (i + 1 < timeArr.length - 1) {
+              currentHour = timeArr[i + 1].hour();
+            }
+          }
+        });
       });
 
-      timeSlots.forEach(data => {
-        if (data.type === 'break') {
-          timeSlotCards.push(<div className="timeslot  not-available-card" />);
-        } else {
-          timeSlotCards.push(
-            <div className="timeslot">{data.format('HH:mm').toString()}</div>
-          );
-        }
+      console.log(this.props.serviceDuration);
+      timeSlotCards = dates.map((hourData, i) => {
+        return (
+          <div key={i} className="timeslot-row">
+            {hourData.map((date, i) => {
+              return (
+                <div key={i} className="timeslot">
+                  {date.format('HH:mm').toString()} -
+                  {date
+                    .clone()
+                    .add(this.props.serviceDuration, 'minute')
+                    .format('HH:mm')
+                    .toString()}
+                </div>
+              );
+            })}
+          </div>
+        );
       });
+
+      console.log(timeSlotCards);
     }
 
     return (
@@ -164,8 +202,9 @@ export default class EventCalendar extends Component {
       dateDropdown: false,
       date: moment(),
       view: { type: 'month' },
-      availability_field: this.props.availability_field_data,
-      location: this.props.selected_location
+      location_availability_fields: this.props.location_availability_field_data,
+      person_availability_fields: this.props.person_availability_field_data,
+      service_data: this.props.selected_service_data
     };
   }
 
@@ -256,10 +295,8 @@ export default class EventCalendar extends Component {
     });
   };
 
-  filterDays = date => {
-    let data = this.state.availability_field[
-      dayNames[date.day()].toLowerCase()
-    ];
+  filterDays = (date, filteredAvailabiltyField) => {
+    let data = filteredAvailabiltyField[dayNames[date.day()].toLowerCase()];
     if (data.length === 0) {
       return false;
     } else {
@@ -267,55 +304,126 @@ export default class EventCalendar extends Component {
     }
   };
 
-  filterFieldsWithLocation = location => {
-    let availability_field_copy = JSON.parse(
-      JSON.stringify(this.state.availability_field)
-    );
+  filterAvailabilityFields = (
+    location_availability_fields,
+    person_availability_fields
+  ) => {
+    let filtered_availability_field = {};
 
-    for (let [key, value] of Object.entries(availability_field_copy)) {
-      let new_arr = value.filter(data => {
-        return data.location.includes(location);
+    Object.keys(location_availability_fields).forEach(day => {
+      filtered_availability_field[day] = [];
+      person_availability_fields[day].forEach(timeslot1 => {
+        location_availability_fields[day].forEach(timeslot2 => {
+          let intersectingTimeSlot = checkIfTwoTimeSlotOverlaps(
+            timeslot1,
+            timeslot2
+          );
+
+          if (intersectingTimeSlot) {
+            filtered_availability_field[day].push(intersectingTimeSlot);
+          }
+        });
       });
-      availability_field_copy[key] = new_arr;
-    }
+    });
 
-    return availability_field_copy;
+    return filtered_availability_field;
   };
 
   render() {
-    let filtered_availability_field = this.filterFieldsWithLocation(
-      this.state.location
+    // let firstST = moment('09:20', 'HH:mm');
+    // let firstET = moment('12:50', 'HH:mm');
+    // let secondST = moment('09:00', 'HH:mm');
+    // let secondET = moment('12:50', 'HH:mm');
+
+    // let timeslot1 = { start: firstST, end: firstET };
+    // let timeslot2 = { start: secondST, end: secondET };
+
+    // let timeslot = checkIfTwoTimeSlotOverlaps(timeslot1, timeslot2);
+
+    /* deep cloning data for further processing */
+
+    let locationData = JSON.parse(
+      JSON.stringify(this.state.location_availability_fields)
     );
+    let personData = JSON.parse(
+      JSON.stringify(this.state.person_availability_fields)
+    );
+
+    /* changing "HH:mm" format start and end string in availability data to moment object */
+
+    Object.keys(locationData).forEach(day => {
+      locationData[day].forEach((timeslotData, i) => {
+        let start = moment(timeslotData.start, 'HH:mm');
+        let end = moment(timeslotData.end, 'HH:mm');
+        locationData[day][i].start = start;
+        locationData[day][i].end = end;
+      });
+    });
+
+    /* changing "HH:mm" format start and end string in availability data to moment object */
+
+    Object.keys(personData).forEach(day => {
+      personData[day].forEach((timeslotData, i) => {
+        let start = moment(timeslotData.start, 'HH:mm');
+        let end = moment(timeslotData.end, 'HH:mm');
+        personData[day][i].start = start;
+        personData[day][i].end = end;
+      });
+    });
+
+    /* getting actual service availability data by interesecting timeslots of both location and person availabilty data */
+    let filteredAvailabiltyField = this.filterAvailabilityFields(
+      locationData,
+      personData
+    );
+
+    /* UI related logic for rendering different vies of calendar */
     let viewbardata = null;
     let dates = null;
     let calendarStyle = null;
     let dayCards = null;
     let dayNamesArr = dayNames.map(d => d);
 
+    /* for month view */
     if (this.state.view.type === 'month') {
       viewbardata = `${
         monthNames[this.state.date.month()]
       } ${this.state.date.year()}`;
       dates = dateRangeForMonth(this.state.date);
       calendarStyle = { gridTemplateColumns: 'repeat(7,1fr)' };
+
+      /* creating array of card UI to show in the calendar */
       dayCards = dates.map(date => {
+        /* checking if this date is of the same month */
         let isDisabled =
           date.clone().month() !== this.state.date.clone().month();
+
+        /* checking if this is the current month */
         let isCurrent = date.isSame(moment(), 'date');
-        let isDayAvailable = this.filterDays(date);
+
+        /*checking if there is any available timeslots for the service for this particular day */
+        let isAppointmentAvailable = this.filterDays(
+          date,
+          filteredAvailabiltyField
+        );
+
         return (
           <DayCard
             key={date.toString()}
-            disabled={isDisabled || !isDayAvailable}
+            disabled={isDisabled || !isAppointmentAvailable}
             isCurrent={isCurrent}
             onDayClick={this.onDayClick}
+            timeIncrement={this.props.timeIncrement}
             date={date}
           />
         );
       });
     }
 
+    /* logic for the day view where appointment timeslots is shown*/
     if (this.state.view.type === 'day') {
+      /* creating array of dates for showing in the day view */
+      /* for appoinment calendar it's just one day */
       dates = Array.from(
         moment
           .range(
@@ -324,6 +432,7 @@ export default class EventCalendar extends Component {
           )
           .by('days')
       );
+
       let startingDate = dates[0];
       let endDate = dates[dates.length - 1];
       let startingMonth = monthNames[parseInt(startingDate.month())].substring(
@@ -347,17 +456,24 @@ export default class EventCalendar extends Component {
           ? `${startingMonth} ${startingDate.date()} - ${endMonth} ${endDate.date()}, ${endDate.year()}`
           : `${startingMonth} ${startingDate.date()}, ${endDate.year()}`;
 
+      /* creating array of card UI to show in the calendar */
       dayCards = dayCards = dates.map(date => {
+        /* checking if this is the current date */
         let isCurrent = date.isSame(moment(), 'date');
+
+        /* getting data of the availabilty for the specific day */
         let appointmentData =
-          filtered_availability_field[dayNames[date.day()].toLowerCase()];
+          filteredAvailabiltyField[dayNames[date.day()].toLowerCase()];
+
         return (
           <DayCard
             key={date.toString()}
             isCurrent={isCurrent}
             appointmentData={appointmentData}
+            serviceDuration={this.props.selected_service_data.duration}
             isDayView={true}
             date={date}
+            timeIncrement={this.props.timeIncrement}
             onDayClick={this.onDayClick}
           />
         );
@@ -366,58 +482,58 @@ export default class EventCalendar extends Component {
 
     return (
       <div className="appointment-calendar">
-      <div className="inner-wrapper tealShade">
-        <div className="calendar-body">
-          <div className="viewbar">
-            <div
-              className="today-button round-border6"
-              onClick={this.onTodayClick}
-            >
-              Today
-            </div>
-            <div className="current-view-time">
-              <i className="fas fa-angle-left" onClick={this.onBack} />
-              <i className="fas fa-angle-right" onClick={this.onNext} />
-              <span className="unselectable">{viewbardata}</span>
-              <span>
-                <DateDropDown onSelect={this.onSelect} />
-              </span>
-            </div>
-            <div className="view-selection">
+        <div className="inner-wrapper tealShade">
+          <div className="calendar-body">
+            <div className="viewbar">
               <div
-                className={`view-button ${this.state.view.type === 'month' &&
-                  'active'}`}
-                id="month"
-                onClick={this.onViewSelection}
+                className="today-button round-border6"
+                onClick={this.onTodayClick}
               >
-                Month
+                Today
               </div>
-              <div
-                className={`view-button ${this.state.view.type === 'day' &&
-                  this.state.view.number === 1 &&
-                  'active'}`}
-                id="day"
-                data="1"
-                onClick={this.onViewSelection}
-              >
-                Day
+              <div className="current-view-time">
+                <i className="fas fa-angle-left" onClick={this.onBack} />
+                <i className="fas fa-angle-right" onClick={this.onNext} />
+                <span className="unselectable">{viewbardata}</span>
+                <span>
+                  <DateDropDown onSelect={this.onSelect} />
+                </span>
               </div>
-            </div>
-          </div>
-          <div className="top" style={calendarStyle}>
-            {dayNamesArr.map(name => {
-              return (
-                <div key={name} className="day-names">
-                  {name.substring(0, 3)}
+              <div className="view-selection">
+                <div
+                  className={`view-button ${this.state.view.type === 'month' &&
+                    'active'}`}
+                  id="month"
+                  onClick={this.onViewSelection}
+                >
+                  Month
                 </div>
-              );
-            })}
-          </div>
-          <div className="bottom" style={calendarStyle}>
-            {dayCards}
+                <div
+                  className={`view-button ${this.state.view.type === 'day' &&
+                    this.state.view.number === 1 &&
+                    'active'}`}
+                  id="day"
+                  data="1"
+                  onClick={this.onViewSelection}
+                >
+                  Day
+                </div>
+              </div>
+            </div>
+            <div className="top" style={calendarStyle}>
+              {dayNamesArr.map(name => {
+                return (
+                  <div key={name} className="day-names">
+                    {name.substring(0, 3)}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="bottom" style={calendarStyle}>
+              {dayCards}
+            </div>
           </div>
         </div>
-      </div>
       </div>
     );
   }
